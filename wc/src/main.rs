@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::fs::File;
-use std::io::Read;
+use std::{io, io::Read};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -20,51 +20,46 @@ struct Args {
     multi: bool,
 }
 
-fn read_file_from_path(file: &str) -> String {
-    let mut file = File::open(file).expect("file not found");
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content)
-        .expect("failed to convert buffer to string");
-    file_content
+fn read_file(mut reader: Box<dyn Read>) -> io::Result<String> {
+    let mut content = String::new();
+    reader.read_to_string(&mut content)?;
+    Ok(content)
 }
 
-fn read_file_from_stdin() -> String {
-    let mut buffer = String::new();
-    std::io::stdin()
-        .read_to_string(&mut buffer)
-        .expect("failed to read from stdin");
-    buffer
+fn process_file(file: Option<&str>) -> io::Result<String> {
+    match file {
+        Some("stdin") | None => read_file(Box::new(io::stdin())),
+        Some(path) => {
+            let file = File::open(path)?;
+            read_file(Box::new(file))
+        }
+    }
 }
 
 fn main() {
     let args = Args::parse();
-    // read file
-    let file_path = args.file.unwrap_or("stdin".to_string());
-    let file_content = if file_path == "stdin" {
-        read_file_from_stdin()
-    } else {
-        read_file_from_path(&file_path)
+    let file_content = match process_file(args.file.as_deref()) {
+        Ok(content) => content,
+        Err(err) => {
+            eprintln!("Error reading file content: {}", err);
+            return;
+        }
     };
-    if args.count {
-        // count bytes
-        let bytes = file_content.bytes().count();
-        println!("{} {}", bytes, &file_path);
-    } else if args.lines {
-        // count lines
-        let lines = file_content.lines().count();
-        println!("{} {}", lines, &file_path);
-    } else if args.words {
-        // count words
-        let words = file_content.split_whitespace().count();
-        println!("{} {}", words, &file_path);
-    } else if args.multi {
-        // count characters
-        let chars = file_content.chars().count();
-        println!("{} {}", chars, &file_path);
-    } else {
-        let bytes = file_content.bytes().count();
-        let lines = file_content.lines().count();
-        let words = file_content.split_whitespace().count();
-        println!("{} {} {} {}", lines, words, bytes, &file_path);
-    }
+    let file_name = args.file.unwrap_or_else(|| "stdin".to_string());
+
+    let result = match () {
+        _ if args.count => file_content.bytes().count(),
+        _ if args.lines => file_content.lines().count(),
+        _ if args.words => file_content.split_whitespace().count(),
+        _ if args.multi => file_content.chars().count(),
+        _ => {
+            let lines = file_content.lines().count();
+            let words = file_content.split_whitespace().count();
+            let bytes = file_content.bytes().count();
+            println!("{} {} {} {}", lines, words, bytes, file_name);
+            return;
+        }
+    };
+
+    println!("{} {}", result, file_name);
 }
