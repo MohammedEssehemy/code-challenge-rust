@@ -38,33 +38,29 @@ fn read_file_from_stdin() -> String {
 
 fn main() {
     let args = Args::parse();
-    // read file
     let file_path = args.file.unwrap_or("stdin".to_string());
     let file_content = if file_path == "stdin" {
         read_file_from_stdin()
     } else {
         read_file_from_path(&file_path)
     };
-    if args.count {
-        // count bytes
-        let bytes = file_content.bytes().count();
-        println!("{} {}", bytes, &file_path);
-    } else if args.lines {
-        // count lines
-        let lines = file_content.lines().count();
-        println!("{} {}", lines, &file_path);
-    } else if args.words {
-        // count words
-        let words = file_content.split_whitespace().count();
-        println!("{} {}", words, &file_path);
-    } else if args.multi {
-        // count characters
-        let chars = file_content.chars().count();
-        println!("{} {}", chars, &file_path);
-    } else {
-        let bytes = file_content.bytes().count();
-        let lines = file_content.lines().count();
-        let words = file_content.split_whitespace().count();
-        println!("{} {} {} {}", lines, words, bytes, &file_path);
+
+    let mut output = Vec::new();
+    let default_mode = !args.count && !args.lines && !args.words && !args.multi;
+
+    if args.lines || default_mode {
+        output.push(file_content.lines().count().to_string());
     }
+    if args.words || default_mode {
+        output.push(file_content.split_whitespace().count().to_string());
+    }
+    if args.count || default_mode {
+        output.push(file_content.bytes().count().to_string());
+    }
+    if args.multi {
+        output.push(file_content.chars().count().to_string());
+    }
+
+    output.push(file_path);
+    println!("{}", output.join(" "));
 }
