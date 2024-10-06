@@ -1,6 +1,6 @@
 use clap::Parser;
-use std::fs::File;
-use std::io::Read;
+use std::io::Write;
+use utils::{read_file, println_or_exit};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -20,30 +20,10 @@ struct Args {
     multi: bool,
 }
 
-fn read_file_from_path(file: &str) -> String {
-    let mut file = File::open(file).expect("file not found");
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content)
-        .expect("failed to convert buffer to string");
-    file_content
-}
-
-fn read_file_from_stdin() -> String {
-    let mut buffer = String::new();
-    std::io::stdin()
-        .read_to_string(&mut buffer)
-        .expect("failed to read from stdin");
-    buffer
-}
-
 fn main() {
     let args = Args::parse();
     let file_path = args.file.unwrap_or("stdin".to_string());
-    let file_content = if file_path == "stdin" {
-        read_file_from_stdin()
-    } else {
-        read_file_from_path(&file_path)
-    };
+    let file_content = read_file(&file_path);
 
     let mut output = Vec::new();
     let default_mode = !args.count && !args.lines && !args.words && !args.multi;
@@ -62,5 +42,5 @@ fn main() {
     }
 
     output.push(file_path);
-    println!("{}", output.join(" "));
+    println_or_exit!("{}", output.join(" "));
 }

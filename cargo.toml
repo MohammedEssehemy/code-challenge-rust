@@ -1,3 +1,6 @@
 [workspace]
-members = ["wc"]
+members = ["cut", "wc", "utils"]
 resolver = "2"
+
+[workspace.dependencies]
+clap = { version = "4.5.19", features = ["derive"] }
