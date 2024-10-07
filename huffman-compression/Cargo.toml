@@ -1,0 +1,17 @@
+[package]
+name = "huffman-compression"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { workspace = true }
+utils = { path = "../utils" }
+
+
+[lib]
+name = "huffman_compression"
+path = "src/lib.rs"
+
+[[bin]]
+name = "huffman-compression"
+path = "src/main.rs"

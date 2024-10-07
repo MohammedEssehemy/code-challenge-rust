@@ -7,7 +7,7 @@ use utils::{read_file, println_or_exit};
 struct Args {
     /// Source to read from. If empty, stdin or - it will read from stdin
     #[arg(value_name = "FILE", default_value = "stdin")]
-    file: Option<String>,
+    file: String,
 
     /// field indices to extract, one based. Supports multiple delimiters: comma, colon, and semicolon
     #[arg(short = 'f', long = "field", value_parser = parse_field_indices)]

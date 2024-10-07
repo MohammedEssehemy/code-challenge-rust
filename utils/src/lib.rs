@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::fs::{File, write};
+use std::io::{self, BufReader, Read, Write};
 
 /// Macro for printing to stdout with error handling
 ///
@@ -33,7 +33,7 @@ macro_rules! println_or_exit {
 ///
 /// ### Arguments
 ///
-/// * `file_path` - File path to read, if stdin will be read from stdin
+/// * `file_path` - File path to read, if stdin or - will read from stdin
 ///
 /// ### Returns
 ///
@@ -55,4 +55,21 @@ pub fn read_file(file_path: &str) -> String {
         }
     }
     buffer
+}
+
+
+/// Write contents to file path
+///
+/// ### Arguments
+///
+/// * `file_path` - File path to read, if stdout or - will write to stdin
+///
+/// ### Returns
+///
+/// * `String` - File content
+pub fn write_file(file_path: &str, buffer: &str) {
+    match file_path {
+        "stdout" | "-" => { println_or_exit!("{}", buffer); }
+        _ => { write(file_path, buffer.as_bytes()).expect("Failed to write file"); }
+    }
 }

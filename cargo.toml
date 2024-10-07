@@ -1,6 +1,7 @@
 [workspace]
-members = ["cut", "wc", "utils"]
+members = ["cut", "wc", "utils", "huffman-compression"]
 resolver = "2"
 
 [workspace.dependencies]
-clap = { version = "4.5.19", features = ["derive"] }
+clap = { version = "4.5.1", features = ["derive"] }
+utils = { path = "../utils" }
