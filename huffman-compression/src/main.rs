@@ -1,6 +1,6 @@
 use huffman_compression::HuffmanCompression;
 use clap::Parser;
-use utils::{read_file, write_file};
+use utils::read_file;
 
 
 
@@ -21,6 +21,5 @@ fn main() {
     let file_path = args.input_file;
     let file_contents = read_file(&file_path);
     let huffman_compression = HuffmanCompression::encode(&file_contents);
-    // convert code_map to string, with
-    write_file(&args.output_file, &huffman_compression.to_string());
+    huffman_compression.export(&args.output_file);
 }

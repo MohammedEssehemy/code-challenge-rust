@@ -29,6 +29,16 @@ macro_rules! println_or_exit {
     };
 }
 
+pub fn print_or_exit<T: AsRef<[u8]>>(arg: T) {
+    let mut handle = std::io::stdout().lock();
+    if let Err(e) = handle.write_all(arg.as_ref()) {
+        if e.kind() == std::io::ErrorKind::BrokenPipe {
+            std::process::exit(0);
+        }
+        panic!("Failed to print to stdout: {}", e);
+    }
+}
+
 /// Read file from file path
 ///
 /// ### Arguments
@@ -67,9 +77,9 @@ pub fn read_file(file_path: &str) -> String {
 /// ### Returns
 ///
 /// * `String` - File content
-pub fn write_file(file_path: &str, buffer: &str) {
+pub fn write_file(file_path: &str, buffer: &Vec<u8>) {
     match file_path {
-        "stdout" | "-" => { println_or_exit!("{}", buffer); }
-        _ => { write(file_path, buffer.as_bytes()).expect("Failed to write file"); }
+        "stdout" | "-" => { print_or_exit( buffer); }
+        _ => { write(file_path, buffer).expect("Failed to write file"); }
     }
 }

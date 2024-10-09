@@ -1,30 +1,51 @@
 use std::collections::HashMap;
 
+use utils::write_file;
+
+const HEADER_END: &str = "HEADER_END";
 #[derive(Debug)]
 pub struct HuffmanCompression<'a> {
     text: &'a str,
     code_map: CodeMap,
-    encoded_text: String,
+    encoded_bytes: Vec<u8>,
 }
 
 impl<'a> HuffmanCompression<'a> {
     pub fn encode(text: &'a str) -> HuffmanCompression<'a> {
         let tree = HuffmanTree::new(text);
         let code_map = tree.get_code_map();
-        let encoded_text = text.chars()
+        let encoded_bytes = text
+            .chars()
             .map(|character| code_map.get(&character).unwrap().to_owned())
-            .collect::<String>();
-        HuffmanCompression { text, code_map, encoded_text }
+            .collect::<String>()
+            .as_bytes()
+            .chunks(8)
+            .map(|chunk| chunk.iter().fold(0_u8, |acc, &b| (acc << 1) | (b - b'0')))
+            .collect::<Vec<_>>();
+        HuffmanCompression {
+            text,
+            code_map,
+            encoded_bytes,
+        }
     }
-}
 
-impl<'a> ToString for HuffmanCompression<'a> {
-    fn to_string(&self) -> String {
-        let code_map_string = self.code_map.iter()
+    fn encode_header(&self) -> Vec<u8> {
+        let header_str = self
+            .code_map
+            .iter()
             .map(|(character, code)| format!("{}: {}", character, code))
             .collect::<Vec<String>>()
-            .join("\n");
-        format!("Code Map:\n{}\nEncoded Text:\n{}", code_map_string, self.encoded_text)
+            .join("\n")
+            + HEADER_END;
+        header_str.as_bytes().to_vec()
+    }
+
+    pub fn export(&self, file_path: &str) {
+        let mut bytes_vec = self.encode_header();
+        {
+            bytes_vec.extend(&self.encoded_bytes);
+        }
+        write_file(file_path, &bytes_vec);
     }
 }
 
