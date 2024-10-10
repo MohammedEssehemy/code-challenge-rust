@@ -3,15 +3,20 @@ use std::collections::HashMap;
 use utils::write_file;
 
 const HEADER_END: &str = "HEADER_END";
+const HEADER_END_BYTES: &[u8] = HEADER_END.as_bytes();
+
+type CodeMap = HashMap<char, String>;
+type ReverseCodeMap<'a> = HashMap<&'a String, &'a char>;
+
 #[derive(Debug)]
-pub struct HuffmanCompression<'a> {
-    text: &'a str,
+pub struct HuffmanCompression {
+    text: String,
     code_map: CodeMap,
     encoded_bytes: Vec<u8>,
 }
 
-impl<'a> HuffmanCompression<'a> {
-    pub fn encode(text: &'a str) -> HuffmanCompression<'a> {
+impl HuffmanCompression {
+    pub fn encode(text: &str) -> HuffmanCompression {
         let tree = HuffmanTree::new(text);
         let code_map = tree.get_code_map();
         let encoded_bytes = text
@@ -23,7 +28,7 @@ impl<'a> HuffmanCompression<'a> {
             .map(|chunk| chunk.iter().fold(0_u8, |acc, &b| (acc << 1) | (b - b'0')))
             .collect::<Vec<_>>();
         HuffmanCompression {
-            text,
+            text: text.to_string(),
             code_map,
             encoded_bytes,
         }
@@ -33,19 +38,80 @@ impl<'a> HuffmanCompression<'a> {
         let header_str = self
             .code_map
             .iter()
-            .map(|(character, code)| format!("{}: {}", character, code))
+            .map(|(character, code)| format!("{}:{}", *character as u8, code))
             .collect::<Vec<String>>()
             .join("\n")
             + HEADER_END;
         header_str.as_bytes().to_vec()
     }
 
-    pub fn export(&self, file_path: &str) {
+    pub fn export_encoded(&self, file_path: &str) {
         let mut bytes_vec = self.encode_header();
         {
             bytes_vec.extend(&self.encoded_bytes);
         }
         write_file(file_path, &bytes_vec);
+    }
+
+    pub fn decode_header(header: &[u8]) -> CodeMap {
+        header
+            .split(|&b| b == b'\n')
+            .map(|line| {
+                let line_str = String::from_utf8(line.to_vec()).unwrap();
+                let (character, code) = line_str.split_once(":").unwrap();
+                println!("character before: {}", character);
+                println!("code before: {}", code);
+                (char::from_u32(character.trim().parse::<u32>().unwrap()).unwrap(), code.trim().to_string())
+            })
+            .inspect(|(character, code)| {
+                println!("character after: {}", character);
+                println!("code after: {}", code);
+            })
+            .collect()
+    }
+
+    pub fn decode(encoded_bytes: &Vec<u8>) -> HuffmanCompression {
+        let header_end_index = encoded_bytes
+            .windows(HEADER_END_BYTES.len())
+            .position(|window| window == HEADER_END_BYTES)
+            .unwrap();
+        let (header, encoded_body) = encoded_bytes.split_at(header_end_index);
+
+        let code_map = Self::decode_header(header);
+
+        // create a reverse code map
+        let reverse_code_map = code_map
+            .iter()
+            .map(|(character, code)| (code, character))
+            .collect::<ReverseCodeMap>();
+
+        let mut sorted_codes = reverse_code_map.keys().collect::<Vec<_>>();
+
+        sorted_codes.sort_by(|a, b| b.len().cmp(&a.len()));
+        println!("sorted_codes: {:?}", sorted_codes);
+
+        let encoded_bytes = encoded_body.to_vec();
+
+        let mut text = encoded_bytes
+            .iter()
+            // .take(100)
+            .map(|byte| format!("{:08b}", byte))
+            .collect::<String>();
+
+        for code in sorted_codes {
+            let character = reverse_code_map.get(code).unwrap();
+            text = text.replace(*code, &character.to_string());
+        }
+
+        HuffmanCompression {
+            text,
+            code_map,
+            encoded_bytes,
+        }
+    }
+
+    pub fn export_decoded(&self, file_path: &str) {
+        write_file(file_path, &self.text.as_bytes().to_vec());
     }
 }
 
@@ -53,8 +119,6 @@ impl<'a> HuffmanCompression<'a> {
 struct HuffmanTree {
     root: HuffmanNode,
 }
-
-type CodeMap = HashMap<char, String>;
 
 impl HuffmanTree {
     fn get_frequency_map(text: &str) -> HashMap<char, u32> {
@@ -68,17 +132,9 @@ impl HuffmanTree {
     fn new(text: &str) -> HuffmanTree {
         let frequency_map = HuffmanTree::get_frequency_map(text);
 
-        let mut priority_queue = Self::create_priority_queue(&frequency_map);
+        let mut priority_queue = PriorityQueue::from_frequency_map(&frequency_map);
         let root = Self::build_tree(&mut priority_queue);
         HuffmanTree { root }
-    }
-
-    fn create_priority_queue(frequency_map: &HashMap<char, u32>) -> PriorityQueue {
-        let mut priority_queue = PriorityQueue::new();
-        for (character, frequency) in frequency_map {
-            priority_queue.push(HuffmanNode::new(Some(*character), *frequency));
-        }
-        priority_queue
     }
 
     fn build_tree(priority_queue: &mut PriorityQueue) -> HuffmanNode {
@@ -143,8 +199,12 @@ struct PriorityQueue {
 }
 
 impl PriorityQueue {
-    fn new() -> PriorityQueue {
-        PriorityQueue { nodes: Vec::new() }
+    fn from_frequency_map(frequency_map: &HashMap<char, u32>) -> Self {
+        let mut priority_queue = Self { nodes: Vec::new() };
+        for (character, frequency) in frequency_map {
+            priority_queue.push(HuffmanNode::new(Some(*character), *frequency));
+        }
+        priority_queue
     }
 
     fn push(&mut self, node: HuffmanNode) {
@@ -187,7 +247,7 @@ mod tests {
             ('U', 37),
             ('Z', 2),
         ]);
-        let priority_queue = HuffmanTree::create_priority_queue(&frequency_map);
+        let priority_queue = PriorityQueue::from_frequency_map(&frequency_map);
         assert_eq!(priority_queue.nodes.len(), 8);
         assert_eq!(priority_queue.nodes[0].frequency, 2);
         assert_eq!(priority_queue.nodes[7].frequency, 120);

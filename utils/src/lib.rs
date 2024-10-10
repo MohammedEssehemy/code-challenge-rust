@@ -68,6 +68,34 @@ pub fn read_file(file_path: &str) -> String {
 }
 
 
+/// Read binary file from file path
+///
+/// ### Arguments
+///
+/// * `file_path` - File path to read, if stdin or - will read from stdin
+///
+/// ### Returns
+///
+/// * `Vec<u8>` - File content as bytes
+pub fn read_binary_file(file_path: &str) -> Vec<u8> {
+    let mut buffer = Vec::new();
+
+    match file_path {
+        "stdin" | "-" => {
+            io::stdin()
+                .read_to_end(&mut buffer)
+                .expect("Failed to read stdin");
+        }
+        _ => {
+            let file = File::open(file_path).expect("Failed to open file");
+            BufReader::new(file)
+                .read_to_end(&mut buffer)
+                .expect("Failed to read file");
+        }
+    }
+    buffer
+}
+
 /// Write contents to file path
 ///
 /// ### Arguments
